@@ -7,7 +7,7 @@ module.exports.generateQRCodeText = function (qrtype, accountNo, totalCharge){
 	const versionText = "000201";
 	const typeCode = "010211" //promptpay type code 11=multiple times sale, 12= single time sale
 	const sallerBeginField = "29";
-	var sallerCodeTextLemght;
+	var sallerCodeTextLenght;
 	var sallerCodeText;
 	const applicationID = "0016A000000677010111";
 	const truemoneyPromptpayType = "0315";
@@ -18,17 +18,18 @@ module.exports.generateQRCodeText = function (qrtype, accountNo, totalCharge){
 	const amountBeginField = "54";
 	const bahtMoneyCode = "5303764";
 	const checksumBeginField = "6304";
-	if (qrtype === "01"){
+	if (qrtype == "01"){
+		var flagPhoneNo = accountNo.substring(1);
+		accountNo = "0066" + flagPhoneNo;
 		sallerCodeText = applicationID + phonNoPromptpayType + accountNo;
-	} else if (qrtype === "02"){
+	} else if (qrtype == "02"){
 		sallerCodeText = applicationID + citizentIDPromptpayType + accountNo;
-	} else if (qrtype === "03"){
+	} else if (qrtype == "03"){
 		sallerCodeText = applicationID + truemoneyPromptpayType + accountNo;
 	}
-	sallerCodeText = applicationID + truemoneyPromptpayType + accountNo;
-	sallerCodeTextLemght = sallerCodeText.length;
-	//console.log(sallerCodeTextLemght);
-	sallerCodeText = sallerBeginField + sallerCodeTextLemght + sallerCodeText + sallerEndFlag;
+	sallerCodeTextLenght = sallerCodeText.length;
+	//console.log(sallerCodeTextLenght);
+	sallerCodeText = sallerBeginField + sallerCodeTextLenght + sallerCodeText + sallerEndFlag;
 
 	var totalChargeText = Number(totalCharge).toFixed(2);
 	//console.log(totalChargeText);

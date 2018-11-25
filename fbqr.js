@@ -1,6 +1,8 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const logger = require('./logger');
+const constlib = require('./constlib');
 
-let express = require('express'),
-bodyParser = require('body-parser'),
 app = express();
  
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -12,10 +14,15 @@ app.get('/', (req, res) => res.send('Hello World!'));
 
 app.get('/download', function(request, response){
 	var fileName = request.query.imagename;
-	var file = __dirname + '/' + QRDOWNLOAD_FOLDER + '/' + fileName;
+	var file = __dirname + '/' + constlib.QRDOWNLOAD_FOLDER + '/' + fileName;
 	response.download(file); 
 });
 
+app.get('/printfile', function(request, response){
+	var fileName = request.query.filename;
+	var file = __dirname + '/' + constlib.PDFDOWNLOAD_FOLDER + '/' + fileName;
+	response.download(file); 
+});
 
 // Adds support for GET requests to our webhook
 app.get('/webhook', (req, res) => {
@@ -90,8 +97,6 @@ let promptpayNo;
 let payAmount;
 let qrType;
 
-const QRDOWNLOAD_FOLDER = 'qrdownload';
-
  // Handles messages events - will handle incoming messages
 const handleMessage = (sender_psid, received_message) => {
     let response;
@@ -109,15 +114,15 @@ const handleMessage = (sender_psid, received_message) => {
 
 		} else if ((text.length === 10) && (Number(text)  > 0)) {
 			promptpayNo = text;
-			response = "โอเค ขอบคุณมากครับ สำหรับหมายเลขโทรศัพท์\n ต่อไปผมขอทราบ ชื่อ นามสกุล เจ้าของหมายเลขพร้อมเพย์ " + text + " ด้วยครับ\n(พิมพ์ชื่อ เว้นวรรค แล้วตามด้วยนามสกุลครับ)";
+			response = "โอเค ขอบคุณมากครับ สำหรับหมายเลขโทรศัพท์\n ต่อไปผมขอทราบ ชื่อ นามสกุล เจ้าของหมายเลขพร้อมเพย์ " + text + " ด้วยครับ\n(พิมพ์ชื่อ เว้นวรรค แล้วตามด้วยนามสกุลครับ)\nเข่น สมพร พร้อมมูล เป็นต้น";
 			callSendTextAPI(sender_psid, response);
 		} else if ((text.length === 13) && (Number(text)  > 0)) {
 			promptpayNo = text;
-			response = "โอเค ขอบคุณมากครับ สำหรับหมายเลขประจำตัวประชาชน\n ต่อไปผมขอทราบ ชื่อ นามสกุล เจ้าของหมายเลขพร้อมเพย์ " + text + " ด้วยครับ\n(พิมพ์ชื่อ เว้นวรรค แล้วตามด้วยนามสกุลครับ)";
+			response = "โอเค ขอบคุณมากครับ สำหรับหมายเลขประจำตัวประชาชน\n ต่อไปผมขอทราบ ชื่อ นามสกุล เจ้าของหมายเลขพร้อมเพย์ " + text + " ด้วยครับ\n(พิมพ์ชื่อ เว้นวรรค แล้วตามด้วยนามสกุลครับ)\nเข่น สมพร พร้อมมูล เป็นต้น";
 			callSendTextAPI(sender_psid, response);
 		} else if ((text.length === 15) && (Number(text)  > 0)) {
 			promptpayNo = text;
-			response = "โอเค ขอบคุณมากครับ สำหรับหมายเลข e-Wallet\n ต่อไปผมขอทราบ ชื่อ นามสกุล เจ้าของหมายเลขพร้อมเพย์ " + text + " ด้วยครับ\n(พิมพ์ชื่อ เว้นวรรค แล้วตามด้วยนามสกุลครับ)";
+			response = "โอเค ขอบคุณมากครับ สำหรับหมายเลข e-Wallet\n ต่อไปผมขอทราบ ชื่อ นามสกุล เจ้าของหมายเลขพร้อมเพย์ " + text + " ด้วยครับ\n(พิมพ์ชื่อ เว้นวรรค แล้วตามด้วยนามสกุลครับ)\nเข่น สมพร พร้อมมูล เป็นต้น";
 			callSendTextAPI(sender_psid, response);
 		} else if (promptpayNames.length  === 2) {
 			promptpayFName = promptpayNames[0]; 
@@ -141,11 +146,11 @@ const handleMessage = (sender_psid, received_message) => {
 			response = askTemplateYesNo('ข้อมูลถูกต้องไหมครับ?');
 			callSendAPI(sender_psid, response);
 		} else {
-			getLogger().info("* " + text  + new Date());
+			logger().info("* " + " >> " + sender_psid + " >> " + text  + " >> " + new Date());
 			response = "ผมไม่เข้าใจคำสั่งครับ\nหากต้องการสร้างพร้อมเพย์คิวอาร์โค้ดพิมพ์ \"QR\" หรือ \"qr\" เข้ามาเลยครับ\nผมรับทำให้ด้วยความยินดี";
 			callSendTextAPI(sender_psid, response);
 		}
-		getLogger().info(">> " + sender_psid + ">> " + text + new Date());
+		logger().info(">> " + sender_psid + " >> " + text + " >> " + new Date());
     }
 }
  
@@ -153,52 +158,62 @@ const handleMessage = (sender_psid, received_message) => {
 const handlePostback = (sender_psid, received_postback) => {
     let response;
 	let countConfirm = 0;
+	if (countConfirm ==0){
 
-    // Get the payload for the postback
-    let payload = received_postback.payload.trim().toUpperCase();
- 
-    // Set the response based on the postback payload
-    if ((payload === 'หมายเลขโทรศัพท์') | (payload === 'TELEPHONE_NO')) {
-		promptpayType = "หมายเลขโทรศัพท์";
-		qrType = "01";
-        response = "งั้น ผมขอทราบหมายเลขโทรศัพท์เลยครับ (พิมพ์เฉพาะหมายเลขโทรศัพท์อย่างเดียวนะครับ ไม่ต้องมีตัวอักษร ไม่ต้องมีขีด หรืออื่นๆ ปนเข้ามา เช่น 0801254466 แบบนี้เป็นต้น)";
-        callSendTextAPI(sender_psid, response);
-    } else if ((payload === 'หมายเลขประจำตัวประชาชน')  | (payload === 'CITIZENT_NO')) {
-		promptpayType = "หมายเลขประจำตัวประชาชน";
-		qrType = "02";
-        response = "งั้น ผมขอทราบหมายเลขประจำตัวประชาชนเลยครับ (พิมพ์เฉพาะหมายเลขประจำตัวประชาชนอย่างเดียวนะครับ ไม่ต้องมีตัวอักษร ไม่ต้องมีขีด หรืออื่นๆ ปนเข้ามา เช่น 1900900999900 แบบนี้เป็นต้น)";
-        callSendTextAPI(sender_psid, response);
-    } else if ((payload === 'หมายเลข e-Wallet') | (payload === 'EWALLET_NO')) {
-		promptpayType = "หมายเลข e-Wallt";
-		qrType = "03";
-        response = "งั้น ผมขอทราบหมายเลข e-Wallt เลยครับ (พิมพ์เฉพาะหมายเลข e-Wallt อย่างเดียวนะครับ ไม่ต้องมีตัวอักษร ไม่ต้องมีขีด หรืออื่นๆ ปนเข้ามา เช่น 180000862221213 แบบนี้เป็นต้น)";
-        callSendTextAPI(sender_psid, response);
-    } else if(payload === 'QR'){
-		response = askTemplate('สวัสดีครับ ' + ' เชิญเลือกประเภทพร้อมเพย์ก่อนเลยครับ');
-		callSendAPI(sender_psid, response);
-    } else if  ((payload === 'ขอแก้ไข') | (payload === 'NO.')) {
-		response = askTemplate('โอเค\n' + 'เชิญเลือกประเภทพร้อมเพย์ใหม่อีกครั้งครับ และป้อนข้อมูลด้วยความระมัดระวังนะครับ');
-		callSendAPI(sender_psid, response);
-    } else if  ((payload === 'ถูกต้อง') | (payload === 'YES.')) {
-		if (countConfirm == 0){
-			response = "โปรดสักครู่... \nผมจะดำเนินการสร้างพร้อมเพย์คิวอาร์โค้ดให้ครับ";
-			callSendTextAPI(sender_psid, response,  function() {
-				var accountNo = promptpayNo;
-				var accountName = promptpayFName + " " + promptpayLName;
-				var totalCharge = payAmount;
-				createPromptpayQRCode(qrType, accountNo, accountName, totalCharge, function(imageLink) {
-					countConfirm++;
-					callSendImageAPI(sender_psid, imageLink);
-					callSendTextAPI(sender_psid, "ดาวน์โหลดพร้อมเพย์คิวอาร์โค้ดของคุณได้ที่\n" + imageLink);
+		// Get the payload for the postback
+		let payload = received_postback.payload.trim().toUpperCase();
+	 
+		// Set the response based on the postback payload
+		if ((payload === 'หมายเลขโทรศัพท์') | (payload === 'TELEPHONE_NO')) {
+			promptpayType = "หมายเลขโทรศัพท์";
+			qrType = "01";
+			response = "งั้น ผมขอทราบหมายเลขโทรศัพท์เลยครับ (พิมพ์เฉพาะหมายเลขโทรศัพท์อย่างเดียวนะครับ ไม่ต้องมีตัวอักษร ไม่ต้องมีขีด หรืออื่นๆ ปนเข้ามา เช่น 0801254466 แบบนี้เป็นต้น)";
+			callSendTextAPI(sender_psid, response);
+		} else if ((payload === 'หมายเลขประจำตัวประชาชน')  | (payload === 'CITIZENT_NO')) {
+			promptpayType = "หมายเลขประจำตัวประชาชน";
+			qrType = "02";
+			response = "งั้น ผมขอทราบหมายเลขประจำตัวประชาชนเลยครับ (พิมพ์เฉพาะหมายเลขประจำตัวประชาชนอย่างเดียวนะครับ ไม่ต้องมีตัวอักษร ไม่ต้องมีขีด หรืออื่นๆ ปนเข้ามา เช่น 1900900999900 แบบนี้เป็นต้น)";
+			callSendTextAPI(sender_psid, response);
+		} else if ((payload === 'หมายเลข e-Wallet') | (payload === 'EWALLET_NO')) {
+			promptpayType = "หมายเลข e-Wallt";
+			qrType = "03";
+			response = "งั้น ผมขอทราบหมายเลข e-Wallt เลยครับ (พิมพ์เฉพาะหมายเลข e-Wallt อย่างเดียวนะครับ ไม่ต้องมีตัวอักษร ไม่ต้องมีขีด หรืออื่นๆ ปนเข้ามา เช่น 180000862221213 แบบนี้เป็นต้น)";
+			callSendTextAPI(sender_psid, response);
+		} else if(payload === 'QR'){
+			response = askTemplate('สวัสดีครับ ' + ' เชิญเลือกประเภทพร้อมเพย์ก่อนเลยครับ');
+			callSendAPI(sender_psid, response);
+		} else if  ((payload === 'ขอแก้ไข') | (payload === 'NO.')) {
+			response = askTemplate('โอเค\n' + 'เชิญเลือกประเภทพร้อมเพย์ใหม่อีกครั้งครับ และป้อนข้อมูลด้วยความระมัดระวังนะครับ');
+			callSendAPI(sender_psid, response);
+		} else if  ((payload === 'ถูกต้อง') | (payload === 'YES.')) {
+			if (countConfirm == 0){
+				response = "โปรดรอสักครู่... \nผมจะดำเนินการสร้างพร้อมเพย์คิวอาร์โค้ดให้ครับ";
+				callSendTextAPI(sender_psid, response,  function() {
+					var accountNo = promptpayNo;
+					var accountName = promptpayFName + " " + promptpayLName;
+					var totalCharge = payAmount;
+					const createPromptpayQRCode = require('./createPromptpayQRCode');
+					const apiSublink = "fbmessager";
+					createPromptpayQRCode(qrType, accountNo, accountName, totalCharge, apiSublink, function(filename, imageLink) {
+						countConfirm++;
+						callSendImageAPI(sender_psid, imageLink);
+						const createPromptpayQRCodePDF = require('./createPromptpayQRCodePDF');
+						createPromptpayQRCodePDF(qrType, accountNo, accountName, totalCharge, apiSublink, function(filename, pdfLink) {
+							callSendTextAPI(sender_psid, "ดาวน์โหลดพร้อมเพย์คิวอาร์โค้ดของคุณเพื่อพิมพ์ออกทางเครื่องพิมพ์ได้ที่\n" + pdfLink);
+							const savedata = require('./savedata');
+							savedata('fb', sender_psid, qrType, accountNo, accountName, Number(totalCharge), filename, 'Y', 'Y');
+						});
+					});
 				});
-			});
+			}
+		} else {
+			logger().info("* " + payload + " >> " + new Date());
+			response = "ผมไม่เข้าใจคำสั่งครับ\nหากต้องการสร้างพร้อมเพย์คิวอาร์โค้ดพิมพ์ \"QR\" หรือ \"qr\" เข้ามาเลยครับ\nผมรับทำให้ด้วยความยินดี";
+			callSendTextAPI(sender_psid, response);
 		}
-    } else {
-		getLogger().info("* " + payload + new Date());
-        response = "ผมไม่เข้าใจคำสั่งครับ\nหากต้องการสร้างพร้อมเพย์คิวอาร์โค้ดพิมพ์ \"QR\" หรือ \"qr\" เข้ามาเลยครับ\nผมรับทำให้ด้วยความยินดี";
-        callSendTextAPI(sender_psid, response);
+		logger().info(">> " + sender_psid + " >> " + payload  + " >> " + new Date());
+		countConfirm++;
 	}
-	getLogger().info(">> " + sender_psid + ">> " + text + new Date());
 }
 
 const askTemplate = (text) => {
@@ -378,69 +393,12 @@ const callSendImageAPI = (user_psid, imageLink, cb = null) => {
     });
 }
 
-const createPromptpayQRCode = (qrtype, accountNo, accountName, totalCharge, callback = null) => {
-	const qrcodetextgen = require('./qrcodetextgen');
-	const {registerFont, createCanvas, createImageData} = require('canvas');
-	registerFont('THSarabunNew.ttf', { family: 'THSarabunNew' })
-	const imageCanvas = createCanvas(400, 570);
-	const qrcodeCanvas = createCanvas(400, 400);
-	const ctx = imageCanvas.getContext('2d');
-	ctx.font = 'bold 30px "THSarabunNew"'
-	ctx.fillStyle = 'black';
-	ctx.textAlign = 'left';
-	ctx.fillText("หมายเลขพร้อมเพย์  " + accountNo, 10, 430);
-	ctx.fillText("ชื่อบัญชี " + accountName, 10, 460);
-	ctx.fillText("มูลค่าการโอน : " + Number(totalCharge).toFixed(2).replace(/(\d)(?=(\d{3})+\.)/g, '$1,') + " บาท", 10, 490);
-	ctx.textAlign = 'center';
-	ctx.fillText("ขอบคุณที่ใช้บริการ F4SME", 200, 523);
-
-	ctx.font = 'bold 20px "THSarabunNew"'
-	ctx.fillStyle = 'black';
-	ctx.textAlign = 'left';
-	ctx.fillText("คนไทยทุกคนเข้ามาสร้างพร้อมเพย์คิวอาร์โค้ดได้ฟรีที่ m.me/f4sme", 10, 550);
-
-	var QRText =  qrcodetextgen.generateQRCodeText(qrtype, accountNo, totalCharge); 
-	const QRCode = require('qrcode');
-	QRCode.toCanvas(qrcodeCanvas, QRText, function (error) {
-		//console.log(error);
-		ctx.drawImage(qrcodeCanvas, 0, 0, 400, 400);
-		var fs = require('fs');
-		var imageFileName = accountNo + "_" + totalCharge + new Date().getTime();
-		var imageFileExName = '.png';
-		var imagePath =  __dirname + "/"  + QRDOWNLOAD_FOLDER + '/' + imageFileName + imageFileExName;
-		const out = fs.createWriteStream(imagePath);
-		const stream = imageCanvas.createPNGStream();
-		stream.pipe(out);
-		out.on('finish', () =>  {
-			console.log('The PNG file was created at ' + imagePath);
-			var imageLink = "https://www.myshopman.com/api/fbmessager/download?imagename=" +imageFileName + imageFileExName; /**สร้าง api  /download ***/
-			callback(imageLink);
-		});
-	});
-}
-
-const winston = require('winston');
-require('winston-daily-rotate-file');
-function getLogger(module) {
-	const transport = new winston.transports.DailyRotateFile({
-		filename: './logs/log-%DATE%.txt',
-		datePattern: 'YYYY-MM-DD',
-		prepend: true,
-		/* level: process.env.ENV === 'development' ? 'silly' : 'error', */
-		level: 'silly'
-	});
-	const logger = winston.createLogger({
-		transports: [transport],
-	});
-	return logger;
-}  
-
 
 /* ต
 	Thank you author of this blog very mush. For idea that give me a new life.
 	https://quantizd.com/building-facebook-messenger-bot-with-nodejs/
 	Start node qr.js as service
-	pm2 start node qr.js
+	pm2 start node fbqr.js
 	Stop
 	pm2 list
 	pm2 stop app_name_or_id
@@ -448,3 +406,33 @@ function getLogger(module) {
 	pm2 restart app_name_or_id
 	https://www.digitalocean.com/community/tutorials/how-to-set-up-a-node-js-application-for-production-on-ubuntu-16-04
 */
+
+/*
+	kill node process
+	ps aux | grep node
+	Find the process ID (second from the left):
+
+	kill -9 PROCESS_ID
+	This may also work
+
+	killall node
+*/
+
+/*
+scp /cygdrive/e/nodep/server.js sasurean@202.28.68.6:/home/sasurean/nodejs
+scp /cygdrive/e/nodep/hosts sasurean@202.28.68.6:/etc/hosts
+
+curl -X GET -H "Content-Type:application/json" -H "X-MyHeader: 123" http://202.28.68.6/shop/api -d '{"text":"something"}'
+curl -X POST -H "Content-Type:application/json" -H "X-MyHeader: 123" http://202.28.68.6/qrimage -d '{"accountNo": "140000835077746", "accountName": "นายประเสริฐ สุดชดา", "totalCharge": "377.12"}'
+
+/etc/init.d/apache2 restart
+service apache2 restart
+
+
+cd nodejs
+node server.js
+
+Navigate to folder and
+chmod -R 777 .
+*/
+
